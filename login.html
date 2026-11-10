@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foodies | Gateway</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root { --primary: #800000; --accent: #ff4757; --dark-bg: #121212; --gradient: linear-gradient(135deg, #800000, #b30000); }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--dark-bg); color: #ffffff; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .auth-container { background: #ffffff; color: #333333; padding: 40px; border-radius: 25px; width: 100%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; }
+        .auth-container h2 { color: var(--primary); font-weight: 800; margin-bottom: 25px; }
+        .tab-btn { background: #eee; color: #333; border: none; padding: 12px 25px; cursor: pointer; font-weight: bold; border-radius: 8px; margin: 0 5px 25px 5px; transition: 0.3s; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        label { display: block; margin-top: 12px; font-size: 0.85rem; font-weight: bold; color: #555; text-align: left; }
+        input { width: 100%; padding: 12px; margin: 5px 0 15px; border: 2px solid #eee; border-radius: 12px; outline: none; }
+        .btn { background: var(--gradient); color: white; border: none; padding: 14px; border-radius: 30px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; font-size: 1.1rem; margin-top: 15px; }
+        .btn:hover { transform: scale(1.02); }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <h2>FOODIES GATEWAY</h2>
+        <div>
+            <button class="tab-btn active" id="loginTab" onclick="switchTab('login')">Login</button>
+            <button class="tab-btn" id="signupTab" onclick="switchTab('signup')">Sign Up</button>
+        </div>
+        <div id="auth-fields"></div>
+        <button class="btn" onclick="handleAuth()">Access System</button>
+    </div>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAcqem0guIyfZkm6al-l9lgdayq_dQot_s",
+            authDomain: "foodi-26170.firebaseapp.com",
+            projectId: "foodi-26170",
+            storageBucket: "foodi-26170.firebasestorage.app",
+            messagingSenderId: "80696872522",
+            appId: "1:80696872522:web:20f625572317950a14a0b3",
+            measurementId: "G-B0SV48MPGH"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        let currentMode = 'login';
+
+        window.onload = () => {
+            if(localStorage.getItem('foodies_user')) window.location.href = "index.html";
+            switchTab('login');
+        };
+
+        function switchTab(mode) {
+            currentMode = mode;
+            const fields = document.getElementById('auth-fields');
+            if(mode === 'login') {
+                fields.innerHTML = `
+                    <label>Gmail Address</label><input type="email" id="email" placeholder="example@gmail.com">
+                    <label>Password</label><input type="password" id="pass" placeholder="••••••••">`;
+                document.getElementById('loginTab').classList.add('active');
+                document.getElementById('signupTab').classList.remove('active');
+            } else {
+                fields.innerHTML = `
+                    <label>Full Name</label><input type="text" id="name" placeholder="Enter your full name">
+                    <label>Gmail Address</label><input type="email" id="email" placeholder="example@gmail.com">
+                    <label>Phone Number</label><input type="tel" id="phone" placeholder="01XXXXXXXXX">
+                    <label>Date of Birth</label><input type="date" id="bday">
+                    <label>Password</label><input type="password" id="pass" placeholder="Create secure password">
+                    <label>Profile Picture</label><input type="file" id="pic" accept="image/*">`;
+                document.getElementById('signupTab').classList.add('active');
+                document.getElementById('loginTab').classList.remove('active');
+            }
+        }
+
+        function handleAuth() {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('pass').value;
+            if(!email || !pass) return alert("Fill required fields!");
+
+            if(email === "admin@foodies.com" && pass === "admin123") {
+                window.location.href = "admin.html";
+                return;
+            }
+
+            if(currentMode === 'signup') {
+                const name = document.getElementById('name').value;
+                const phone = document.getElementById('phone').value;
+                const bday = document.getElementById('bday').value;
+                const file = document.getElementById('pic').files[0];
+                if(!name || !phone || !bday) return alert("Fill all info!");
+
+                db.collection("users").doc(email).get().then((doc) => {
+                    if (doc.exists) alert("Gmail already registered!");
+                    else {
+                        let userObj = { name, email, phone, bday, pass, pic: 'https://via.placeholder.com/100' };
+                        if(file) {
+                            const reader = new FileReader();
+                            reader.onload = (e) => { userObj.pic = e.target.result; saveUser(email, userObj); };
+                            reader.readAsDataURL(file);
+                        } else { saveUser(email, userObj); }
+                    }
+                });
+            } else {
+                db.collection("users").doc(email).get().then((doc) => {
+                    if (doc.exists && doc.data().pass === pass) {
+                        localStorage.setItem('foodies_user', JSON.stringify(doc.data()));
+                        window.location.href = "index.html";
+                    } else { alert("Invalid credentials!"); }
+                });
+            }
+        }
+
+        function saveUser(id, obj) {
+            db.collection("users").doc(id).set(obj).then(() => {
+                localStorage.setItem('foodies_user', JSON.stringify(obj));
+                window.location.href = "index.html";
+            });
+        }
+    </script>
+</body>
+</html>

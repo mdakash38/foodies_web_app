@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foodies | Track Orders</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root { --primary: #800000; --dark-bg: #121212; --card-bg: #1e1e1e; --success: #2ed573; --danger: #ff4757; }
+        body { background: var(--dark-bg); color: #fff; font-family: 'Segoe UI', sans-serif; padding: 40px 5%; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid var(--primary); padding-bottom: 15px; }
+        .back-btn { background: var(--primary); color: white; text-decoration: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; }
+        .history-grid { display: grid; grid-template-columns: 1fr; gap: 20px; max-width: 800px; margin: 0 auto; }
+        .track-card { background: var(--card-bg); border-radius: 15px; padding: 25px; border: 1px solid #333; position: relative; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .status-badge { position: absolute; top: 25px; right: 25px; padding: 6px 18px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; text-transform: uppercase; }
+        .status-Pending { background: #ffa502; color: #000; }
+        .status-Accepted { background: var(--success); color: #000; }
+        .status-Canceled { background: var(--danger); color: #fff; }
+        .meta-line { margin-bottom: 8px; font-size: 1rem; opacity: 0.9; }
+        .meta-line strong { color: #ff4757; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2>📋 Your Order History & Live Track Panel</h2>
+        <a href="index.html" class="back-btn">⬅ Back to Shop</a>
+    </header>
+
+    <div class="history-grid" id="track-list">
+        <p style="text-align: center; opacity: 0.5;">Establishing cloud connection to stream your orders...</p>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAcqem0guIyfZkm6al-l9lgdayq_dQot_s",
+            authDomain: "foodi-26170.firebaseapp.com",
+            projectId: "foodi-26170",
+            storageBucket: "foodi-26170.firebasestorage.app",
+            messagingSenderId: "80696872522",
+            appId: "1:80696872522:web:20f625572317950a14a0b3",
+            measurementId: "G-B0SV48MPGH"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        window.onload = () => {
+            const session = localStorage.getItem('foodies_user');
+            if(!session) { window.location.href = "login.html"; return; }
+            const user = JSON.parse(session);
+
+            db.collection("orders")
+              .where("customer_email", "==", user.email)
+              .onSnapshot((snapshot) => {
+                  const container = document.getElementById('track-list');
+                  container.innerHTML = "";
+
+                  if(snapshot.empty) {
+                      container.innerHTML = `<p style="text-align:center; opacity:0.5; padding:40px;">You haven't placed any orders yet!</p>`;
+                      return;
+                  }
+
+                  snapshot.forEach((doc) => {
+                      const o = doc.data();
+                      const status = o.status || "Pending";
+                      
+                      container.innerHTML += `
+                          <div class="track-card">
+                              <span class="status-badge status-${status}">${status}</span>
+                              <h3 style="margin-bottom:15px; color:#fff;">Invoice ID: ${o.delivery_id}</h3>
+                              <div class="meta-line"><strong>Items Packed:</strong> ${o.order_details}</div>
+                              <div class="meta-line"><strong>Total Pricing:</strong> ${o.grand_total}</div>
+                              <div class="meta-line"><strong>Tracking Location:</strong> ${o.location}</div>
+                              <div class="meta-line" style="font-size:0.85rem; opacity:0.5; margin-top:15px;">Phone Registered: ${o.customer_phone}</div>
+                          </div>`;
+                  });
+              });
+        };
+    </script>
+</body>
+</html>

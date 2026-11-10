@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foodies | Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script>emailjs.init("406DU1EvAhpxD6htM");</script>
+    <style>
+        :root { --primary: #800000; --dark-bg: #121212; --card-bg: #1e1e1e; --success: #2ed573; --danger: #ff4757; }
+        body { background: var(--dark-bg); color: #fff; font-family: 'Segoe UI', sans-serif; padding: 40px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h2 { border-left: 5px solid var(--primary); padding-left: 15px; margin-bottom: 30px; }
+        .order-card { background: var(--card-bg); border: 1px solid #333; padding: 25px; border-radius: 15px; margin-bottom: 20px; position: relative; }
+        .status-badge { position: absolute; top: 25px; right: 25px; padding: 6px 15px; border-radius: 20px; font-weight: bold; }
+        .status-Pending { background: #ffa502; color: #000; }
+        .status-Accepted { background: var(--success); color: #000; }
+        .status-Canceled { background: var(--danger); color: #fff; }
+        .btn-group { display: flex; gap: 15px; margin-top: 15px; }
+        .action-btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-acc { background: var(--success); } .btn-can { background: var(--danger); color: white; }
+        .action-btn:disabled { background: #444; color: #777; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Ecosystem Live Admin Board</h2>
+        <div id="orders-list"><p>Connecting stream...</p></div>
+    </div>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAcqem0guIyfZkm6al-l9lgdayq_dQot_s",
+            authDomain: "foodi-26170.firebaseapp.com",
+            projectId: "foodi-26170",
+            storageBucket: "foodi-26170.firebasestorage.app",
+            messagingSenderId: "80696872522",
+            appId: "1:80696872522:web:20f625572317950a14a0b3",
+            measurementId: "G-B0SV48MPGH"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+            const list = document.getElementById('orders-list'); list.innerHTML = "";
+            snapshot.forEach((doc) => {
+                const o = doc.data(), id = doc.id, status = o.status || "Pending", dis = status !== "Pending" ? "disabled" : "";
+                list.innerHTML += `
+                    <div class="order-card">
+                        <span class="status-badge status-${status}">${status}</span>
+                        <h3>Invoice: ${o.delivery_id}</h3>
+                        <p><strong>Customer:</strong> ${o.customer_name} (${o.customer_email})</p>
+                        <p><strong>Phone:</strong> ${o.customer_phone || 'N/A'}</p>
+                        <p><strong>Items:</strong> ${o.order_details}</p>
+                        <p><strong>Bill:</strong> ${o.grand_total}</p>
+                        <p><strong>Address:</strong> ${o.location}</p>
+                        <div class="btn-group">
+                            <button class="action-btn btn-acc" ${dis} onclick="changeStatus('${id}', 'Accepted', '${o.customer_email}', '${o.customer_name}', '${o.delivery_id}')">Accept Order</button>
+                            <button class="action-btn btn-can" ${dis} onclick="changeStatus('${id}', 'Canceled', '${o.customer_email}', '${o.customer_name}', '${o.delivery_id}')">Cancel Order</button>
+                        </div>
+                    </div>`;
+        });
+    });
+
+        function changeStatus(id, action, customerEmail, customerName, invoice) {
+            if(!confirm("Confirm " + action + "?")) return;
+            
+            db.collection("orders").doc(id).update({ status: action }).then(() => {
+                let emailSubject = action === "Accepted" ? "Your Foodies Order is Confirmed! 🎉" : "Your Foodies Order was Canceled ❌";
+                let emailMessage = action === "Accepted" 
+                    ? "Great news! Your food order has been accepted by our chef and is currently being prepared."
+                    : "We are sorry to inform you that your food order has been canceled by administration.";
+
+                // এখানে কাস্টমারের জন্য নতুন আইডি template_e4ess19 ব্যবহার করা হয়েছে
+                emailjs.send('service_3g2kcee', 'template_e4ess19', {
+                    to_name: customerName, 
+                    customer_email: customerEmail, 
+                    subject: emailSubject, 
+                    message: emailMessage, 
+                    delivery_key: invoice
+                }).then(() => alert("Status updated & Mail sent directly to Customer (" + customerEmail + ")"));
+            });
+        }
+    </script>
+</body>
+</html>

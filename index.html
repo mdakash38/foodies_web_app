@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foodies | Shop</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script>emailjs.init("406DU1EvAhpxD6htM");</script>
+    <style>
+        :root { --primary: #800000; --accent: #ff4757; --dark-bg: #121212; --card-bg: #1e1e1e; --gradient: linear-gradient(135deg, #800000, #b30000); }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--dark-bg); color: #fff; padding-bottom: 100px; }
+        header { background: #000; padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid var(--primary); }
+        .logo { font-size: 24px; font-weight: 900; color: #fff; } .logo span { color: var(--accent); }
+        .nav-links a { color: #fff; text-decoration: none; margin-left: 20px; font-weight: bold; border: 1px solid var(--primary); padding: 8px 15px; border-radius: 20px; background: #000; transition: 0.3s; }
+        .nav-links a:hover { background: var(--primary); }
+        .sidebar { position: fixed; top: 0; left: -300px; width: 280px; height: 100%; background: #000; transition: 0.4s; padding: 40px 20px; z-index: 2000; border-right: 2px solid var(--primary); }
+        .sidebar.active { left: 0; }
+        .profile-pic { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--primary); object-fit: cover; margin-bottom: 15px; }
+        .hero { height: 30vh; background: var(--gradient); display: flex; align-items: center; justify-content: center; text-align: center; }
+        .container { padding: 40px 5%; }
+        .menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 25px; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 20px; text-align: center; border: 1px solid #333; }
+        .card img { width: 100%; height: 180px; object-fit: cover; border-radius: 15px; margin-bottom: 15px; }
+        .btn { background: var(--gradient); color: white; border: none; padding: 12px 25px; border-radius: 30px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; }
+        .form-box { background: #fff; color: #333; padding: 35px; border-radius: 25px; width: 90%; max-width: 450px; }
+        input { width: 100%; padding: 12px; margin: 5px 0 15px; border: 2px solid #eee; border-radius: 12px; }
+        .checkout-bar { position: fixed; bottom: 0; width: 100%; background: #000; padding: 20px 5%; display: flex; justify-content: space-between; align-items: center; border-top: 3px solid var(--primary); }
+    </style>
+</head>
+<body>
+    <div class="sidebar" id="sidebar">
+        <button onclick="toggleSidebar()" style="color:white; float:right; border:none; background:none; font-size:30px;">✕</button>
+        <div style="text-align: center; margin-top: 60px;">
+            <img id="user-pico" src="" class="profile-pic">
+            <h3 id="side-name">Loading...</h3>
+            <p id="side-email" style="opacity:0.6; font-size:14px; margin-bottom:5px;"></p>
+            <p id="side-phone" style="opacity:0.6; font-size:13px; color:var(--accent); margin-bottom:20px;"></p>
+            <button class="btn" style="background: #333;" onclick="logOut()">Logout Account</button>
+        </div>
+    </div>
+
+    <header>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button onclick="toggleSidebar()" style="font-size: 28px; color: var(--accent); border: none; background: none; cursor: pointer;">☰</button>
+            <div class="logo">FOOD<span>IES</span></div>
+        </div>
+        <div class="nav-links">
+            <a href="view.html">📋 My Orders Track</a>
+        </div>
+    </header>
+
+    <section class="hero"><h1 id="welcome-text">Loading Shop Ecosystem...</h1></section>
+
+    <div class="modal" id="qtyModal">
+        <div class="form-box">
+            <h3 id="m-item-name" style="color:var(--primary)">Item</h3>
+            <input type="number" id="o-qty" value="1" min="1">
+            <input type="text" id="o-loc" placeholder="Detailed Delivery Address">
+            <button class="btn" onclick="addToCart()">Add to List</button>
+            <button class="btn" style="background:#777;" onclick="closeModal('qtyModal')">Cancel</button>
+        </div>
+    </div>
+
+    <div class="container"><div class="menu-grid" id="menu-display"></div></div>
+
+    <div class="checkout-bar">
+        <div><h3 id="c-total">Total: $0</h3></div>
+        <button class="btn" style="width:auto; background:#2ed573;" onclick="finalCheckout()">Confirm & Download Colorful Invoice</button>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAcqem0guIyfZkm6al-l9lgdayq_dQot_s",
+            authDomain: "foodi-26170.firebaseapp.com",
+            projectId: "foodi-26170",
+            storageBucket: "foodi-26170.firebasestorage.app",
+            messagingSenderId: "80696872522",
+            appId: "1:80696872522:web:20f625572317950a14a0b3",
+            measurementId: "G-B0SV48MPGH"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        let currentUser = null, cart = [], activeF = {};
+
+        const foods = [
+            { name: "Spicy Burger", price: 150, img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400" },
+            { name: "Cheese Pizza", price: 450, img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400" },
+            { name: "Chicken Pasta", price: 500, img: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400" },
+            { name: "Cold Coke", price: 90, img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400" }
+        ];
+
+        window.onload = () => {
+            const session = localStorage.getItem('foodies_user');
+            if(!session) { window.location.href = "login.html"; return; }
+            currentUser = JSON.parse(session);
+
+            document.getElementById('side-name').innerText = currentUser.name;
+            document.getElementById('side-email').innerText = currentUser.email;
+            document.getElementById('side-phone').innerText = "📞 " + currentUser.phone;
+            document.getElementById('user-pico').src = currentUser.pic;
+
+            const grid = document.getElementById('menu-display');
+            foods.forEach(f => {
+                grid.innerHTML += `<div class="card"><img src="${f.img}"><h3>${f.name}</h3><p style="color:var(--accent); font-weight:bold;">$${f.price}</p><button class="btn" onclick="openQty('${f.name}', ${f.price})">Order Now</button></div>`;
+            });
+            document.getElementById('welcome-text').innerText = "Welcome, " + currentUser.name + "!";
+        };
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+        function openQty(n, p) { activeF = { n, p }; document.getElementById('qtyModal').style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        function addToCart() {
+            let q = parseInt(document.getElementById('o-qty').value);
+            let loc = document.getElementById('o-loc').value;
+            if(!loc || q < 1) return alert("Missing Info!");
+            cart.push({ n: activeF.n, p: activeF.p, q: q, t: activeF.p * q });
+            currentUser.loc = loc;
+            document.getElementById('c-total').innerText = "Total: $" + cart.reduce((s, i) => s + i.t, 0);
+            closeModal('qtyModal');
+        }
+
+        function finalCheckout() {
+            if(cart.length === 0) return alert("Cart empty!");
+            const deliveryKey = "FD-" + Math.floor(1000 + Math.random() * 9000);
+            let summary = cart.map(i => i.n + " x " + i.q).join(", ");
+            const total = cart.reduce((s, i) => s + i.t, 0);
+
+            db.collection("orders").add({
+                customer_name: currentUser.name,
+                customer_email: currentUser.email,
+                customer_phone: currentUser.phone,
+                order_details: summary,
+                grand_total: "$" + total,
+                location: currentUser.loc,
+                delivery_id: deliveryKey,
+                status: "Pending",
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // template_twosid7 সরাসরি আপনার জিমেইলে (mda061638@gmail.com) নোটিফিকেশন দেবে
+            emailjs.send('service_3g2kcee', 'template_twosid7', {
+                customer_name: currentUser.name,
+                customer_email: currentUser.email,
+                order_details: summary,
+                grand_total: "$" + total,
+                delivery_key: deliveryKey,
+                location: currentUser.loc
+            }).then(() => alert("Order Sent to Admin Dashboard!"));
+
+            // কালারফুল মেমো ডিজাইন পিডিএফ ডাউনলোড
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFillColor(128, 0, 0); doc.rect(0, 0, 210, 45, 'F'); 
+            doc.setTextColor(255, 255, 255); doc.setFontSize(26); doc.text("FOODIES MERCHANDISE", 105, 28, null, null, "center");
+            doc.setTextColor(50, 50, 50); doc.setFontSize(12); doc.text("OFFICIAL FOOD ORDER MEMO INVOICE", 105, 38, null, null, "center");
+            
+            doc.setTextColor(0, 0, 0); doc.setFontSize(14);
+            doc.setFillColor(245, 245, 245); doc.rect(15, 55, 180, 75, 'F');
+            doc.text("Invoice ID Key: " + deliveryKey, 22, 68);
+            doc.text("Customer Name: " + currentUser.name, 22, 80);
+            doc.text("Contact Phone: " + currentUser.phone, 22, 92);
+            doc.text("Order Package: " + summary, 22, 104);
+            doc.text("Destination: " + currentUser.loc, 22, 116);
+            
+            doc.setFillColor(46, 213, 115); doc.rect(15, 140, 180, 20, 'F');
+            doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.text("GRAND TOTAL BILL COLLECTED: $" + total, 105, 153, null, null, "center");
+            doc.save("Foodies_Invoice_" + deliveryKey + ".pdf");
+
+            cart = []; document.getElementById('c-total').innerText = "Total: $0";
+        }
+        function logOut() { localStorage.removeItem('foodies_user'); window.location.href = "login.html"; }
+    </script>
+</body>
+</html>
